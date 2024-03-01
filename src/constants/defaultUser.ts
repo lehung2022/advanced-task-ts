@@ -19,7 +19,7 @@ export const defaultUser: User = {
       enableGlow: true,
       enableReadAloud: "speechSynthesis" in window,
       voice: "Google UK English Male",
-      voiceVolume: 0.6,
+      voiceVolume: 2,
     },
   ],
   categories: [
