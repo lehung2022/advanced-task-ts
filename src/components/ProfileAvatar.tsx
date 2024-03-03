@@ -146,7 +146,7 @@ export const ProfileAvatar = () => {
         >
           <Logo src={logo} alt="logo" />
           <h2>
-            <span style={{ color: "#7764E8" }}>Todo</span> App
+            <span style={{ color: "#7764E8" }}>Advanced</span> Tasks
             <span style={{ color: "#7764E8" }}>.</span>
           </h2>
         </LogoContainer>
@@ -221,7 +221,7 @@ export const ProfileAvatar = () => {
         </StyledMenuItem>
         <StyledMenuItem
           onClick={() => {
-            window.open("https://github.com/maciekt07/TodoApp/issues/new");
+            window.open("https://github.com/lehung2022/advanced-task-ts/issues/new");
           }}
         >
           <BugReportRounded /> &nbsp; Report Issue{" "}
@@ -295,22 +295,11 @@ export const ProfileAvatar = () => {
               <Favorite sx={{ fontSize: "16px" }} />
             </span>
             <span style={{ marginLeft: "6px", marginRight: "4px" }}>by</span>
-
             <a
               style={{ textDecoration: "none", color: "inherit" }}
-              href="https://github.com/maciekt07"
+              href="https://github.com/lehung2022"
             >
-              {/* <Chip
-                avatar={
-                  <Avatar
-                    sx={{ opacity: "1 !important" }}
-                    src="https://avatars.githubusercontent.com/u/85953204?v=4"
-                  />
-                }
-                label="maciekt07"
-                sx={{ fontWeight: "bold", opacity: "1 !important" }}
-              /> */}
-              maciekt07
+              黎興
             </a>
 
             <br />
