@@ -9,6 +9,7 @@ import MainLayout from "./layouts/MainLayout";
 import AppRouter from "./router";
 import toast, { Toaster } from "react-hot-toast";
 import { useResponsiveDisplay } from "./hooks/useResponsiveDisplay";
+import { useScreenBelowBreakpoint } from "./hooks/useScreenBelowBreakpoint";
 import { UserContext } from "./contexts/UserContext";
 import { DataObjectRounded } from "@mui/icons-material";
 import { ThemeProvider as EmotionTheme } from "@emotion/react";
@@ -18,6 +19,7 @@ function App() {
   const [user, setUser] = useStorageState<User>(defaultUser, "user");
   const isMobile = useResponsiveDisplay();
   const systemTheme = useSystemTheme();
+  const isBelow400px = useScreenBelowBreakpoint(400);
 
   // Update the theme color meta tag in the document's head based on the user's selected theme.
   useEffect(() => {
@@ -100,6 +102,15 @@ function App() {
     const theme = getMuiTheme();
     return theme.palette.secondary.main;
   };
+
+  if (isBelow400px) {
+    return (
+      <div style={{ textAlign: "center", paddingTop: "50vh" }}>
+        <p>Nothing to display</p>
+      </div>
+    );
+    // Show the message "Nothing to display" when it reaches the screen below 400px
+  }
 
   return (
     <ThemeProvider theme={getMuiTheme()}>
