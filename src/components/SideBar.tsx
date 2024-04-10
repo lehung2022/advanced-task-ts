@@ -265,7 +265,7 @@ export const ProfileSidebar = () => {
 
         <StyledMenuItem
           onClick={() => {
-            window.open("https://github.com/maciekt07/TodoApp/issues/new");
+            window.open("https://github.com/lehung2022/advanced-task-ts/issues/new");
           }}
         >
           <BugReportRounded /> &nbsp; Report Issue{" "}
@@ -285,7 +285,7 @@ export const ProfileSidebar = () => {
         <StyledMenuItem
           className="bmcMenu"
           onClick={() => {
-            window.open("https://www.buymeacoffee.com/maciekt07");
+            window.open("https://www.youtube.com/@hunggamerofficial3252");
           }}
         >
           <BmcIcon className="bmc-icon" src={bmcLogo} /> &nbsp; Buy me a coffee{" "}
