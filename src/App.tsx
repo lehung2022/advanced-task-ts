@@ -205,58 +205,6 @@ function App() {
   }
 
   return content; // Return the content here, outside the block
-
-  return (
-    <ThemeProvider theme={getMuiTheme()}>
-      <EmotionTheme theme={{ primary: getPrimaryColor(), secondary: getSecondaryColor() }}>
-        <GlobalStyles />
-        <Toaster
-          position="top-center"
-          reverseOrder={false}
-          gutter={12}
-          containerStyle={{
-            marginBottom: isMobile ? "96px" : "12px",
-          }}
-          toastOptions={{
-            position: "bottom-center",
-            duration: 3800,
-            style: {
-              padding: "14px 22px",
-              borderRadius: "18px",
-              fontSize: "17px",
-              border: `2px solid ${getPrimaryColor()}`,
-              background: "#141431e0",
-              WebkitBackdropFilter: "blur(6px)",
-              backdropFilter: "blur(6px)",
-              color: ColorPalette.fontLight,
-            },
-            success: {
-              iconTheme: {
-                primary: getPrimaryColor(),
-                secondary: getFontColor(getPrimaryColor()),
-              },
-            },
-            error: {
-              iconTheme: {
-                primary: ColorPalette.red,
-                secondary: "white",
-              },
-              style: {
-                borderColor: ColorPalette.red,
-              },
-            },
-          }}
-        />
-        <UserContext.Provider value={{ user, setUser }}>
-          <ErrorBoundary>
-            <MainLayout>
-              <AppRouter />
-            </MainLayout>
-          </ErrorBoundary>
-        </UserContext.Provider>
-      </EmotionTheme>
-    </ThemeProvider>
-  );
 }
 
 export default App;
