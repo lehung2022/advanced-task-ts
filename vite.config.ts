@@ -24,9 +24,9 @@ export default defineConfig({
         display: "standalone",
         scope: "/",
         start_url: "/",
-        short_name: "Todo App",
-        description: "Todo App",
-        name: "Todo App",
+        short_name: "Advanced Task",
+        description: "Advanced Task",
+        name: "Advanced Task",
         icons: [
           {
             src: "logo192.png",

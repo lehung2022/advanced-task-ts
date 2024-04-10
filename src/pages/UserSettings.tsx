@@ -43,7 +43,7 @@ const UserSettings = () => {
   const systemTheme = useSystemTheme();
 
   useEffect(() => {
-    document.title = `Todo App - User ${name ? `(${name})` : ""}`;
+    document.title = `Advanced Task - User ${name ? `(${name})` : ""}`;
   }, [name]);
 
   const handleSaveName = () => {

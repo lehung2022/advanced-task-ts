@@ -190,7 +190,7 @@ export const ProfileSidebar = () => {
         >
           <Logo src={logo} alt="logo" />
           <h2>
-            <span style={{ color: "#7764E8" }}>Todo</span> App
+            <span style={{ color: "#7764E8" }}>Advanced</span> Task
             <span style={{ color: "#7764E8" }}>.</span>
           </h2>
         </LogoContainer>

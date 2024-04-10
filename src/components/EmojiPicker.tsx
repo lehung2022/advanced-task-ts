@@ -35,19 +35,6 @@ export const CustomEmojiPicker = ({ emoji, setEmoji, color, width, theme }: Emoj
 
   const isOnline = useOnlineStatus();
 
-  //FIXME: emojis doesnt load on first load using Emoji component
-
-  // const customEmojis: CustomEmoji[] = [
-  //   {
-  //     names: ["Todo App", "Todo App Logo"],
-  //     imgUrl: logo,
-  //     id: "todoapp",
-  //   },
-  //   { names: ["React.js", "React"], imgUrl: ReactLogo, id: "reactjs" },
-  //   { names: ["Github", "Github Logo"], imgUrl: githubLogo, id: "github" },
-  //   //User pfp
-  //   { names: ["Crying Cat", "cat", "cry"], imgUrl: cryingCat, id: "cryingcat" },
-  // ];
 
   interface EmojiItem {
     unified: string;

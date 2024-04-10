@@ -14,11 +14,13 @@ import { DataObjectRounded } from "@mui/icons-material";
 import { ThemeProvider as EmotionTheme } from "@emotion/react";
 import { useSystemTheme } from "./hooks/useSystemTheme";
 import { getFontColor, showToast } from "./utils";
+import { useScreenBelowBreakpoint } from "./hooks/useScreenBelowBreakpoint";
 
 function App() {
   const [user, setUser] = useStorageState<User>(defaultUser, "user");
   const isMobile = useResponsiveDisplay();
   const systemTheme = useSystemTheme();
+  const isBelow400px = useScreenBelowBreakpoint(400);
 
   // Initialize user properties if they are undefined
   // this allows to add new properties to the user object without error
@@ -140,6 +142,69 @@ function App() {
   useEffect(() => {
     document.querySelector("meta[name=theme-color]")?.setAttribute("content", getSecondaryColor());
   }, [user.theme, getSecondaryColor]);
+
+  let content;
+  if (isBelow400px) {
+    content = (
+      <div style={{ textAlign: "center", paddingTop: "50vh" }}>
+        <p>Nothing to display</p>
+      </div>
+    );
+  } else {
+    content = (
+      <ThemeProvider theme={getMuiTheme()}>
+        <EmotionTheme theme={{ primary: getPrimaryColor(), secondary: getSecondaryColor() }}>
+          <GlobalStyles />
+          <Toaster
+            position="top-center"
+            reverseOrder={false}
+            gutter={12}
+            containerStyle={{
+              marginBottom: isMobile ? "96px" : "12px",
+            }}
+            toastOptions={{
+              position: "bottom-center",
+              duration: 3800,
+              style: {
+                padding: "14px 22px",
+                borderRadius: "18px",
+                fontSize: "17px",
+                border: `2px solid ${getPrimaryColor()}`,
+                background: "#141431e0",
+                WebkitBackdropFilter: "blur(6px)",
+                backdropFilter: "blur(6px)",
+                color: ColorPalette.fontLight,
+              },
+              success: {
+                iconTheme: {
+                  primary: getPrimaryColor(),
+                  secondary: getFontColor(getPrimaryColor()),
+                },
+              },
+              error: {
+                iconTheme: {
+                  primary: ColorPalette.red,
+                  secondary: "white",
+                },
+                style: {
+                  borderColor: ColorPalette.red,
+                },
+              },
+            }}
+          />
+          <UserContext.Provider value={{ user, setUser }}>
+            <ErrorBoundary>
+              <MainLayout>
+                <AppRouter />
+              </MainLayout>
+            </ErrorBoundary>
+          </UserContext.Provider>
+        </EmotionTheme>
+      </ThemeProvider>
+    );
+  }
+
+  return content; // Return the content here, outside the block
 
   return (
     <ThemeProvider theme={getMuiTheme()}>

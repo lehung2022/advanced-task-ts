@@ -152,7 +152,7 @@ export const TaskMenu: React.FC<TaskMenuProps> = ({
           <div>
             <b>All tasks done</b>
             <br />
-            <span>You've checked off all your todos. Well done!</span>
+            <span>You've checked off all your tasks. Well done!</span>
           </div>,
           {
             icon: (

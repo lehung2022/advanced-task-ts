@@ -39,7 +39,7 @@ const ImportExport = () => {
   useCtrlS();
 
   useEffect(() => {
-    document.title = "Todo App - Transfer tasks";
+    document.title = "Advanced Task - Transfer tasks";
   }, []);
 
   // clear file input after logout

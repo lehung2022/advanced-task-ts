@@ -16,7 +16,7 @@ const TaskDetails = () => {
   const task = tasks.find((task) => task.id.toString().replace(".", "") === formattedId);
 
   useEffect(() => {
-    document.title = `Todo App - ${task?.name || "Task Details"}`;
+    document.title = `Advanced Task - ${task?.name || "Task Details"}`;
   }, [task?.name]);
 
   if (!task) {

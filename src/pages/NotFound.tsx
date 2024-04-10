@@ -14,7 +14,7 @@ const NotFound: React.FC<NotFoundProps> = ({ message }) => {
   const n = useNavigate();
 
   useEffect(() => {
-    document.title = "Todo App - Page Not Found";
+    document.title = "Advanced Task - Page Not Found";
   }, []);
 
   return (
