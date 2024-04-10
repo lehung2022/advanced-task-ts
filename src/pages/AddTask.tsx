@@ -6,11 +6,10 @@ import { CancelRounded, Edit } from "@mui/icons-material";
 import { Button, IconButton, InputAdornment, Tooltip } from "@mui/material";
 import { DESCRIPTION_MAX_LENGTH, TASK_NAME_MAX_LENGTH } from "../constants";
 import { CategorySelect, ColorPicker, TopBar, CustomEmojiPicker } from "../components";
-import toast from "react-hot-toast";
 import { UserContext } from "../contexts/UserContext";
 import { useStorageState } from "../hooks/useStorageState";
 import { useTheme } from "@emotion/react";
-import { getFontColor } from "../utils";
+import { getFontColor, showToast } from "../utils";
 
 const AddTask = () => {
   const { user, setUser } = useContext(UserContext);
@@ -35,7 +34,7 @@ const AddTask = () => {
   const n = useNavigate();
 
   useEffect(() => {
-    document.title = "Advanced Tasks - Add Task";
+    document.title = "Todo App - Add Task";
     if (name.length > TASK_NAME_MAX_LENGTH) {
       setNameError(`Name should be less than or equal to ${TASK_NAME_MAX_LENGTH} characters`);
     } else {
@@ -48,7 +47,7 @@ const AddTask = () => {
     } else {
       setDescriptionError("");
     }
-  }, []);
+  }, [description.length, name.length]);
 
   const handleNameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const newName = event.target.value;
@@ -83,7 +82,7 @@ const AddTask = () => {
       }
 
       const newTask: Task = {
-        id: new Date().getTime() + Math.floor(Math.random() * 1000),
+        id: crypto.randomUUID(),
         done: false,
         pinned: false,
         name,
@@ -101,28 +100,36 @@ const AddTask = () => {
       }));
 
       n("/");
-      toast.success((t) => (
-        <div onClick={() => toast.dismiss(t.id)}>
+
+      showToast(
+        <div>
           Added task - <b>{newTask.name}</b>
         </div>
-      ));
+      );
 
       const itemsToRemove = ["name", "color", "description", "emoji", "deadline", "categories"];
       itemsToRemove.map((item) => sessionStorage.removeItem(item));
     } else {
-      toast.error((t) => <div onClick={() => toast.dismiss(t.id)}>Task name is required.</div>);
+      showToast("Task name is required.", { type: "error" });
     }
   };
 
   return (
     <>
       <TopBar title="Add New Task" />
+      <button
+        onClick={() => {
+          showToast("Hang on, don't rush", { type: "loading" });
+        }}
+      >
+        Be patient
+      </button>
       <Container>
         <CustomEmojiPicker
           emoji={typeof emoji === "string" ? emoji : undefined}
           setEmoji={setEmoji}
           color={color}
-          theme={getFontColor(theme.secondary) === ColorPalette.fontDark ? "dark" : "light"}
+          theme={getFontColor(theme.secondary) === ColorPalette.fontDark ? "light" : "dark"}
         />
         <StyledInput
           label="Task Name"

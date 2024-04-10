@@ -8,12 +8,15 @@ interface TopBarProps {
   title: string;
 }
 
-export const TopBar: React.FC<TopBarProps> = ({ title }) => {
+/**
+ * Component for displaying a top bar with a title and a back button.
+ * @param {string} title - Title of page
+ */
+export const TopBar = ({ title }: TopBarProps) => {
   const n = useNavigate();
-  const handleBackClick = () => n("/");
   return (
     <Container>
-      <BackBtn size="large" onClick={handleBackClick}>
+      <BackBtn size="large" onClick={() => n("/")}>
         <ArrowIcon />
       </BackBtn>
       <Title>{title}</Title>

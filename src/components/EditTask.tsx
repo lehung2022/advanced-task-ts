@@ -14,10 +14,9 @@ import styled from "@emotion/styled";
 import { DESCRIPTION_MAX_LENGTH, TASK_NAME_MAX_LENGTH } from "../constants";
 import { ColorPalette, DialogBtn } from "../styles";
 import { CategorySelect, ColorPicker, CustomEmojiPicker } from ".";
-import toast from "react-hot-toast";
 import { UserContext } from "../contexts/UserContext";
-import { CancelRounded, EditCalendarRounded } from "@mui/icons-material";
-import { timeAgo } from "../utils";
+import { CancelRounded, EditCalendarRounded, SaveRounded } from "@mui/icons-material";
+import { showToast, timeAgo } from "../utils";
 
 interface EditTaskProps {
   open: boolean;
@@ -73,11 +72,11 @@ export const EditTask = ({ open, task, onClose, onSave }: EditTaskProps) => {
     document.body.style.overflow = "auto";
     if (editedTask && !nameError && !descriptionError) {
       onSave(editedTask);
-      toast.success((t) => (
-        <div onClick={() => toast.dismiss(t.id)}>
+      showToast(
+        <div>
           Task <b>{editedTask.name}</b> updated.
         </div>
-      ));
+      );
     }
   };
 
@@ -108,7 +107,7 @@ export const EditTask = ({ open, task, onClose, onSave }: EditTaskProps) => {
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
-  }, [editedTask, task]);
+  }, [editedTask, open, task]);
 
   return (
     <Dialog
@@ -152,7 +151,7 @@ export const EditTask = ({ open, task, onClose, onSave }: EditTaskProps) => {
           emoji={editedTask?.emoji || undefined}
           setEmoji={setEmoji}
           color={editedTask?.color}
-          width="400px"
+          width="350px"
         />
         <StyledInput
           label="Name"
@@ -199,6 +198,7 @@ export const EditTask = ({ open, task, onClose, onSave }: EditTaskProps) => {
           defaultValue=""
           InputLabelProps={{ shrink: true }}
           sx={{
+            colorScheme: "light",
             " & .MuiInputBase-root": {
               transition: ".3s all",
             },
@@ -264,8 +264,7 @@ export const EditTask = ({ open, task, onClose, onSave }: EditTaskProps) => {
             JSON.stringify(editedTask) === JSON.stringify(task)
           }
         >
-          {/* <SaveRounded /> &nbsp;  */}
-          Save
+          <SaveRounded /> &nbsp; Save
         </DialogBtn>
       </DialogActions>
     </Dialog>
@@ -274,23 +273,13 @@ export const EditTask = ({ open, task, onClose, onSave }: EditTaskProps) => {
 
 const StyledInput = styled(TextField)`
   margin: 14px 0;
-
   & .MuiInputBase-root {
     border-radius: 16px;
   }
-
-  /* & .MuiFormHelperText-root {
-    opacity: 0.9;
-  } */
 `;
 StyledInput.defaultProps = {
   fullWidth: true,
 };
-// const Label = styled(Typography)`
-//   margin-left: 8px;
-//   font-weight: 500;
-//   font-size: 16px;
-// `;
 
 const LastEdit = styled.span`
   display: flex;

@@ -7,10 +7,10 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      // devOptions: {
-      //   enabled: true,
-      //   type: "module",
-      // },
+      devOptions: {
+        enabled: true,
+        type: "module",
+      },
       // cache all the imports
       registerType: "autoUpdate",
       workbox: {
@@ -24,9 +24,9 @@ export default defineConfig({
         display: "standalone",
         scope: "/",
         start_url: "/",
-        short_name: "Advanced Tasks",
-        description: "Advanced Tasks",
-        name: "Advanced Tasks",
+        short_name: "Todo App",
+        description: "Todo App",
+        name: "Todo App",
         icons: [
           {
             src: "logo192.png",
@@ -42,6 +42,12 @@ export default defineConfig({
             src: "logo384.png",
             sizes: "384x384",
             type: "image/png",
+          },
+          {
+            src: "logoMaskable.png",
+            sizes: "256x256",
+            type: "image/png",
+            purpose: "maskable",
           },
           {
             src: "logo512.png",

@@ -1,35 +1,29 @@
 import { useStorageState } from "./hooks/useStorageState";
 import { defaultUser } from "./constants/defaultUser";
-import { User } from "./types/user";
+import type { User } from "./types/user";
 import { ColorPalette, GlobalStyles, Themes } from "./styles";
 import { ThemeProvider } from "@mui/material";
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { ErrorBoundary } from "./components";
 import MainLayout from "./layouts/MainLayout";
 import AppRouter from "./router";
-import toast, { Toaster } from "react-hot-toast";
+import { Toaster } from "react-hot-toast";
 import { useResponsiveDisplay } from "./hooks/useResponsiveDisplay";
-import { useScreenBelowBreakpoint } from "./hooks/useScreenBelowBreakpoint";
 import { UserContext } from "./contexts/UserContext";
 import { DataObjectRounded } from "@mui/icons-material";
 import { ThemeProvider as EmotionTheme } from "@emotion/react";
 import { useSystemTheme } from "./hooks/useSystemTheme";
+import { getFontColor, showToast } from "./utils";
 
 function App() {
   const [user, setUser] = useStorageState<User>(defaultUser, "user");
   const isMobile = useResponsiveDisplay();
   const systemTheme = useSystemTheme();
-  const isBelow400px = useScreenBelowBreakpoint(400);
-
-  // Update the theme color meta tag in the document's head based on the user's selected theme.
-  useEffect(() => {
-    document.querySelector("meta[name=theme-color]")?.setAttribute("content", getSecondaryColor());
-  }, [user.theme]);
 
   // Initialize user properties if they are undefined
   // this allows to add new properties to the user object without error
-
   useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const updateNestedProperties = (userObject: any, defaultObject: any) => {
       if (!userObject) {
         return defaultObject;
@@ -39,6 +33,15 @@ function App() {
         if (key === "categories") {
           return;
         }
+
+        if (
+          key === "colorList" &&
+          user.colorList &&
+          !defaultUser.colorList.every((element, index) => element === user.colorList[index])
+        ) {
+          return;
+        }
+
         const userValue = userObject[key];
         const defaultValue = defaultObject[key];
 
@@ -49,15 +52,13 @@ function App() {
           // Update only if the property is missing in user
           userObject[key] = defaultValue;
           // Notify users about update
-          toast.success(
-            (t) => (
-              <div onClick={() => toast.dismiss(t.id)}>
-                Added new property to user object{" "}
-                <i>
-                  {key}: {userObject[key]}
-                </i>
-              </div>
-            ),
+          showToast(
+            <div>
+              Added new property to user object{" "}
+              <i>
+                {key}: {userObject[key].toString()}
+              </i>
+            </div>,
             {
               duration: 6000,
               icon: <DataObjectRounded />,
@@ -80,9 +81,41 @@ function App() {
       }
       return prevUser;
     });
-  }, []);
+  }, [setUser, user.colorList]);
 
-  const getMuiTheme = () => {
+  // This useEffect displays an native application badge count (for PWA) based on the number of tasks that are not done.
+  // https://developer.mozilla.org/en-US/docs/Web/API/Badging_API
+  useEffect(() => {
+    const setBadge = (...args: number[]) => {
+      if (navigator.setAppBadge) {
+        navigator.setAppBadge(...args);
+      }
+    };
+    // Function to display the application badge
+    const displayAppBadge = async () => {
+      if (user.settings[0].appBadge === true) {
+        // Request permission for notifications
+
+        if ((await Notification.requestPermission()) === "granted") {
+          // Calculate the number of incomplete tasks
+          const incompleteTasksCount = user.tasks.filter((task) => !task.done).length;
+
+          // Update the app badge count if the value is a valid number
+          if (!isNaN(incompleteTasksCount)) {
+            setBadge(incompleteTasksCount);
+          }
+        }
+      } else {
+        navigator.clearAppBadge && navigator.clearAppBadge();
+      }
+    };
+    // Check if the browser supports setting the app badge
+    if ("setAppBadge" in navigator) {
+      displayAppBadge();
+    }
+  }, [setUser, user.settings, user.tasks]);
+
+  const getMuiTheme = useCallback(() => {
     if (systemTheme === "unknown") {
       return Themes[0].MuiTheme;
     }
@@ -91,26 +124,22 @@ function App() {
     }
     const selectedTheme = Themes.find((theme) => theme.name === user.theme);
     return selectedTheme ? selectedTheme.MuiTheme : Themes[0].MuiTheme;
-  };
+  }, [systemTheme, user.theme]);
+
+  const getSecondaryColor = useCallback(() => {
+    const theme = getMuiTheme();
+    return theme.palette.secondary.main;
+  }, [getMuiTheme]);
 
   const getPrimaryColor = () => {
     const theme = getMuiTheme();
     return theme.palette.primary.main;
   };
 
-  const getSecondaryColor = () => {
-    const theme = getMuiTheme();
-    return theme.palette.secondary.main;
-  };
-
-  if (isBelow400px) {
-    return (
-      <div style={{ textAlign: "center", paddingTop: "50vh" }}>
-        <p>Nothing to display</p>
-      </div>
-    );
-    // Show the message "Nothing to display" when it reaches the screen below 400px
-  }
+  // Update the theme color meta tag in the document's head based on the user's selected theme.
+  useEffect(() => {
+    document.querySelector("meta[name=theme-color]")?.setAttribute("content", getSecondaryColor());
+  }, [user.theme, getSecondaryColor]);
 
   return (
     <ThemeProvider theme={getMuiTheme()}>
@@ -139,7 +168,7 @@ function App() {
             success: {
               iconTheme: {
                 primary: getPrimaryColor(),
-                secondary: "white",
+                secondary: getFontColor(getPrimaryColor()),
               },
             },
             error: {

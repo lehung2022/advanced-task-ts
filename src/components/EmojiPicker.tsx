@@ -1,6 +1,6 @@
 import { useState, useEffect, Dispatch, SetStateAction, CSSProperties, useContext } from "react";
 import styled from "@emotion/styled";
-import { Avatar, Badge, Button, Tooltip } from "@mui/material";
+import { Avatar, Badge, Button } from "@mui/material";
 import { AddReaction, Edit, RemoveCircleOutline } from "@mui/icons-material";
 import EmojiPicker, {
   Emoji,
@@ -17,6 +17,8 @@ import { iOS } from "../utils/iOS";
 
 interface EmojiPickerProps {
   emoji?: string;
+  //FIXME:
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   setEmoji: Dispatch<SetStateAction<any>>;
   //TODO:
   // onEmojiChange: (emojiData: EmojiClickData) => void;
@@ -27,20 +29,52 @@ interface EmojiPickerProps {
 
 export const CustomEmojiPicker = ({ emoji, setEmoji, color, width, theme }: EmojiPickerProps) => {
   const { user, setUser } = useContext(UserContext);
-  const { emojisStyle } = user;
-
+  const { emojisStyle, settings } = user;
   const [showEmojiPicker, setShowEmojiPicker] = useState<boolean>(false);
-
   const [currentEmoji, setCurrentEmoji] = useState<string | null>(emoji || null);
 
   const isOnline = useOnlineStatus();
 
-  // const [emojiData, setEmojiData] = useState<EmojiClickData>();
+  //FIXME: emojis doesnt load on first load using Emoji component
+
+  // const customEmojis: CustomEmoji[] = [
+  //   {
+  //     names: ["Todo App", "Todo App Logo"],
+  //     imgUrl: logo,
+  //     id: "todoapp",
+  //   },
+  //   { names: ["React.js", "React"], imgUrl: ReactLogo, id: "reactjs" },
+  //   { names: ["Github", "Github Logo"], imgUrl: githubLogo, id: "github" },
+  //   //User pfp
+  //   { names: ["Crying Cat", "cat", "cry"], imgUrl: cryingCat, id: "cryingcat" },
+  // ];
+
+  interface EmojiItem {
+    unified: string;
+    original: string;
+    count: number;
+  }
+
+  const getFrequentlyUsedEmojis = (): string[] => {
+    const frequentlyUsedEmojis: EmojiItem[] | null = JSON.parse(
+      localStorage.getItem("epr_suggested") || "null"
+    );
+
+    if (!frequentlyUsedEmojis) {
+      return [];
+    }
+
+    frequentlyUsedEmojis.sort((a: EmojiItem, b: EmojiItem) => b.count - a.count);
+    const topEmojis: EmojiItem[] = frequentlyUsedEmojis.slice(0, 6);
+    const topUnified: string[] = topEmojis.map((item: EmojiItem) => item.unified);
+
+    return topUnified;
+  };
 
   // When the currentEmoji state changes, update the parent component's emoji state
   useEffect(() => {
     setEmoji(currentEmoji);
-  }, [currentEmoji]);
+  }, [currentEmoji, setEmoji]);
 
   // When the emoji prop changes to an empty string, set the currentEmoji state to undefined
   useEffect(() => {
@@ -100,7 +134,7 @@ export const CustomEmojiPicker = ({ emoji, setEmoji, color, width, theme }: Emoj
   return (
     <>
       <EmojiContainer>
-        <Tooltip
+        {/* <Tooltip
           title={
             showEmojiPicker
               ? "Close Emoji Picker"
@@ -108,42 +142,38 @@ export const CustomEmojiPicker = ({ emoji, setEmoji, color, width, theme }: Emoj
               ? "Change Emoji"
               : "Choose an Emoji"
           }
-        >
-          <Badge
-            overlap="circular"
-            anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-            badgeContent={
-              <Avatar
-                sx={{
-                  background: "#9c9c9c81",
-                  backdropFilter: "blur(6px)",
-                  cursor: "pointer",
-                }}
-                onClick={toggleEmojiPicker}
-              >
-                <Edit />
-              </Avatar>
-            }
-          >
+        > */}
+        <Badge
+          overlap="circular"
+          anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+          badgeContent={
             <Avatar
-              onClick={toggleEmojiPicker}
               sx={{
-                width: "96px",
-                height: "96px",
-                background: color || ColorPalette.purple,
-                transition: ".3s all",
+                background: "#9c9c9c81",
+                backdropFilter: "blur(6px)",
                 cursor: "pointer",
-                // "&:hover": {
-                //   boxShadow: `0 0 16px 1px ${color}`,
-                // },
               }}
+              onClick={toggleEmojiPicker}
             >
-              {renderAvatarContent()}
+              <Edit />
             </Avatar>
-          </Badge>
-        </Tooltip>
+          }
+        >
+          <Avatar
+            onClick={toggleEmojiPicker}
+            sx={{
+              width: "96px",
+              height: "96px",
+              background: color || ColorPalette.purple,
+              transition: ".3s all",
+              cursor: "pointer",
+            }}
+          >
+            {renderAvatarContent()}
+          </Avatar>
+        </Badge>
+        {/* </Tooltip> */}
       </EmojiContainer>
-      {/* {emojiData && <EmojiName>{emojiData.names[0]}</EmojiName>} */}
       {showEmojiPicker && (
         <>
           {!isOnline && emojisStyle !== EmojiStyle.NATIVE && (
@@ -177,7 +207,12 @@ export const CustomEmojiPicker = ({ emoji, setEmoji, color, width, theme }: Emoj
             <EmojiPicker
               width={width || "350px"}
               height="500px"
+              reactionsDefaultOpen={
+                settings[0].simpleEmojiPicker && getFrequentlyUsedEmojis().length !== 0
+              }
+              reactions={getFrequentlyUsedEmojis()}
               emojiStyle={emojisStyle}
+              // customEmojis={customEmojis}
               theme={theme === "dark" ? Theme.DARK : Theme.LIGHT}
               suggestedEmojisMode={SuggestionMode.FREQUENT}
               autoFocusSearch={false}

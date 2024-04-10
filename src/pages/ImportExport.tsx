@@ -2,13 +2,19 @@ import { useContext, useEffect, useRef, useState } from "react";
 import Button from "@mui/material/Button";
 import Checkbox from "@mui/material/Checkbox";
 import { TopBar } from "../components";
-import { Category, Task } from "../types/user";
+import { Category, Task, UUID } from "../types/user";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import styled from "@emotion/styled";
 import { Emoji } from "emoji-picker-react";
-import { FileDownload, FileUpload, Info, Link } from "@mui/icons-material";
-import { exportTasksToJson, getFontColor } from "../utils";
+import {
+  FileDownload,
+  FileUpload,
+  Info,
+  IntegrationInstructionsRounded,
+  Link,
+} from "@mui/icons-material";
+import { exportTasksToJson, getFontColor, showToast } from "../utils";
 import { IconButton, Tooltip } from "@mui/material";
 import {
   CATEGORY_NAME_MAX_LENGTH,
@@ -22,7 +28,7 @@ import { useCtrlS } from "../hooks/useCtrlS";
 
 const ImportExport = () => {
   const { user, setUser } = useContext(UserContext);
-  const [selectedTasks, setSelectedTasks] = useStorageState<number[]>(
+  const [selectedTasks, setSelectedTasks] = useStorageState<UUID[]>(
     [],
     "tasksToExport",
     "sessionStorage"
@@ -30,12 +36,10 @@ const ImportExport = () => {
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  console.log(fileInputRef.current?.textContent);
-
   useCtrlS();
 
   useEffect(() => {
-    document.title = "Advanced Tasks - Transfer tasks";
+    document.title = "Todo App - Transfer tasks";
   }, []);
 
   // clear file input after logout
@@ -45,16 +49,18 @@ const ImportExport = () => {
     }
   }, [user.createdAt]);
 
-  const handleTaskClick = (taskId: number) => {
-    setSelectedTasks((prevSelectedTasks) =>
-      prevSelectedTasks.includes(taskId)
-        ? prevSelectedTasks.filter((id) => id !== taskId)
-        : [...prevSelectedTasks, taskId]
-    );
+  const handleTaskClick = (taskId: UUID) => {
+    setSelectedTasks((prevSelectedTasks) => {
+      if (prevSelectedTasks.includes(taskId)) {
+        return prevSelectedTasks.filter((id) => id !== taskId);
+      } else {
+        return [...prevSelectedTasks, taskId];
+      }
+    });
   };
 
   const handleExport = () => {
-    const tasksToExport = user.tasks.filter((task: Task) => selectedTasks.includes(task.id));
+    const tasksToExport = user.tasks.filter((task) => selectedTasks.includes(task.id));
     exportTasksToJson(tasksToExport);
     toast(
       (t) => (
@@ -85,13 +91,24 @@ const ImportExport = () => {
 
   const handleExportAll = () => {
     exportTasksToJson(user.tasks);
-    toast.success(`Exported all tasks (${user.tasks.length})`);
+    showToast(`Exported all tasks (${user.tasks.length})`);
   };
 
   const handleImport = (taskFile: File) => {
     const file = taskFile;
 
     if (file) {
+      if (file.type !== "application/json") {
+        showToast(
+          <div>
+            Incorrect file type{file.type !== "" && <span> {file.type}</span>}. Please select a JSON
+            file.
+          </div>,
+          { type: "error" }
+        );
+        return;
+      }
+
       const reader = new FileReader();
 
       reader.onload = (e: ProgressEvent<FileReader>) => {
@@ -99,12 +116,15 @@ const ImportExport = () => {
           const importedTasks = JSON.parse(e.target?.result as string) as Task[];
 
           if (!Array.isArray(importedTasks)) {
-            toast.error("Imported file has an invalid structure.");
+            showToast("Imported file has an invalid structure.", { type: "error" });
             return;
           }
 
-          // Check if any imported task property exceeds the maximum length
+          /**
+           * TODO: write separate util function to check if task is not invalid
+           */
 
+          // Check if any imported task property exceeds the maximum length
           const invalidTasks = importedTasks.filter((task) => {
             const isInvalid =
               (task.name && task.name.length > TASK_NAME_MAX_LENGTH) ||
@@ -120,7 +140,10 @@ const ImportExport = () => {
             console.error(
               `These tasks cannot be imported due to exceeding maximum character lengths: ${invalidTaskNames}`
             );
-            toast.error(`Some tasks cannot be imported due to exceeding maximum character lengths`);
+            showToast(
+              `These tasks cannot be imported due to exceeding maximum character lengths: ${invalidTaskNames}`,
+              { type: "error" }
+            );
             return;
           }
 
@@ -137,14 +160,18 @@ const ImportExport = () => {
           });
 
           if (hasInvalidColors) {
-            toast.error("Imported file contains tasks with invalid color formats.");
+            showToast("Imported file contains tasks with invalid color formats.", {
+              type: "error",
+            });
             return;
           }
 
           const maxFileSize = 50_000;
           if (file.size > maxFileSize) {
-            toast.error(`File size is too large (${file.size}/${maxFileSize})`);
+            showToast(`File size is too large (${file.size}/${maxFileSize})`, { type: "error" });
+            return;
           }
+          console.log(file.text);
 
           // Update user.categories if imported categories don't exist
           const updatedCategories = user.categories.slice(); // Create a copy of the existing categories
@@ -185,6 +212,7 @@ const ImportExport = () => {
 
           // Display the alert with the list of imported task names
           console.log(`Imported Tasks: ${importedTaskNames}`);
+
           toast((t) => (
             <div>
               Tasks Successfully Imported from <br />
@@ -210,15 +238,17 @@ const ImportExport = () => {
               </Button>
             </div>
           ));
+
           if (fileInputRef.current) {
             fileInputRef.current.value = "";
           }
         } catch (error) {
           console.error(`Error parsing the imported file ${file.name}:`, error);
-          toast.error(
+          showToast(
             <div style={{ wordBreak: "break-all" }}>
               Error parsing the imported file: <br /> <i>{file.name}</i>
-            </div>
+            </div>,
+            { type: "error" }
           );
           if (fileInputRef.current) {
             fileInputRef.current.value = "";
@@ -230,19 +260,30 @@ const ImportExport = () => {
     }
   };
 
-  const handleImportFromLink = async () => {
+  const handleImportFromLink = async (): Promise<void> => {
     try {
       const text = await navigator.clipboard.readText();
       if (text.startsWith(`${location.protocol}//${location.hostname}`)) {
         window.open(text, "_self");
       } else {
-        toast.error((t) => (
-          <div onClick={() => toast.dismiss(t.id)}>
+        showToast(
+          <div>
             Failed to import task from the provided link. Please ensure that the link is copied
             correctly.
-          </div>
-        ));
+          </div>,
+          { type: "error" }
+        );
       }
+    } catch (err) {
+      console.error("Failed to read clipboard contents: ", err);
+    }
+  };
+
+  const handleImportFromClipboard = async (): Promise<void> => {
+    try {
+      const text = await navigator.clipboard.readText();
+      const file = new File([text], "Clipboard", { type: "application/json" });
+      handleImport(file);
     } catch (err) {
       console.error("Failed to read clipboard contents: ", err);
     }
@@ -259,8 +300,20 @@ const ImportExport = () => {
     setIsDragging(false);
 
     const file = e.dataTransfer.files[0];
-    handleImport(file);
     console.log(file);
+    if (file.size === 0 || file.type === "") {
+      showToast(
+        <div>
+          Unknown file type{" "}
+          <i translate="no" style={{ wordBreak: "break-all" }}>
+            {file.name}
+          </i>
+        </div>,
+        { type: "error" }
+      );
+      return;
+    }
+    handleImport(file);
   };
 
   const handleSelectChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -270,7 +323,7 @@ const ImportExport = () => {
 
   return (
     <>
-      <TopBar title="Import/Export" />
+      <TopBar title="Transfer Tasks" />
       <h2
         style={{
           textAlign: "center",
@@ -297,7 +350,7 @@ const ImportExport = () => {
               selected={selectedTasks.includes(task.id)}
               translate="no"
             >
-              <Checkbox size="medium" checked={selectedTasks.includes(task.id)} />
+              <Checkbox color="primary" size="medium" checked={selectedTasks.includes(task.id)} />
               <Typography
                 variant="body1"
                 component="span"
@@ -323,20 +376,27 @@ const ImportExport = () => {
           gap: "24px",
         }}
       >
-        <StyledButton
-          onClick={handleExport}
-          disabled={selectedTasks.length === 0}
-          variant="outlined"
+        <Tooltip
+          title={
+            selectedTasks.length > 0
+              ? `Selected tasks: ${new Intl.ListFormat("en", {
+                  style: "long",
+                  type: "conjunction",
+                }).format(
+                  selectedTasks.map((taskId) => {
+                    const selectedTask = user.tasks.find((task) => task.id === taskId);
+                    return selectedTask ? selectedTask.name : "";
+                  })
+                )}`
+              : "No tasks selected"
+          }
         >
-          <FileDownload /> &nbsp; Export Selected to JSON{" "}
-          {selectedTasks.length > 0 && `[${selectedTasks.length}]`}
-        </StyledButton>
-
-        <StyledButton
-          onClick={handleExportAll}
-          disabled={user.tasks.length === 0}
-          variant="outlined"
-        >
+          <StyledButton onClick={handleExport} disabled={selectedTasks.length === 0}>
+            <FileDownload /> &nbsp; Export Selected to JSON{" "}
+            {selectedTasks.length > 0 && `[${selectedTasks.length}]`}
+          </StyledButton>
+        </Tooltip>
+        <StyledButton onClick={handleExportAll} disabled={user.tasks.length === 0}>
           <FileDownload /> &nbsp; Export All Tasks to JSON
         </StyledButton>
 
@@ -351,9 +411,7 @@ const ImportExport = () => {
               isDragging={isDragging}
             >
               <FileUpload fontSize="large" color="primary" />
-              <p style={{ fontWeight: 500, fontSize: "16px", margin: 0 }}>
-                Drop JSON file here to import tasks{" "}
-              </p>
+              <div>Drop JSON file here to import tasks </div>
             </DropZone>
           </div>
         )}
@@ -379,8 +437,13 @@ const ImportExport = () => {
             <FileUpload /> &nbsp; Select JSON File
           </Button>
         </label>
+
+        <StyledButton onClick={handleImportFromClipboard}>
+          <IntegrationInstructionsRounded /> &nbsp; Import JSON from clipboard
+        </StyledButton>
+
         {/* Solution for PWA on iOS: */}
-        <StyledButton variant="outlined" onClick={handleImportFromLink}>
+        <StyledButton onClick={handleImportFromLink}>
           <Link /> &nbsp; Import From Link
         </StyledButton>
       </Box>
@@ -397,13 +460,15 @@ const TaskContainer = styled(Box)<{ backgroundclr: string; selected: boolean }>`
   margin: 8px;
   padding: 10px 4px;
   border-radius: 16px;
-  background: #19172b94;
-  color: white;
-  border: 2px solid ${(props) => props.backgroundclr};
-  box-shadow: ${(props) => props.selected && `0 0 8px 1px ${props.backgroundclr}`};
+  background: ${({ theme }) => getFontColor(theme.secondary)}15;
+  border: 2px solid ${({ backgroundclr }) => backgroundclr};
+  box-shadow: ${({ selected, backgroundclr }) => selected && `0 0 8px 1px ${backgroundclr}`};
   transition: 0.3s all;
   width: 300px;
   cursor: "pointer";
+  & span {
+    font-weight: ${({ selected }) => (selected ? 600 : 500)}!important;
+  }
 `;
 
 const ListContent = styled.div`
@@ -426,6 +491,9 @@ const DropZone = styled.div<{ isDragging: boolean }>`
   max-width: 300px;
   box-shadow: ${({ isDragging, theme }) => isDragging && `0 0 32px 0px ${theme.primary}`};
   transition: 0.3s all;
+  & div {
+    font-weight: 500;
+  }
 `;
 
 const InfoIcon = styled(Info)`
@@ -445,21 +513,21 @@ const Container = styled(Box)`
   ::-webkit-scrollbar {
     width: 8px;
     border-radius: 4px;
-    background-color: #ffffff15;
+    background-color: ${({ theme }) => getFontColor(theme.secondary)}15;
   }
 
   ::-webkit-scrollbar-thumb {
-    background-color: #ffffff30;
+    background-color: ${({ theme }) => getFontColor(theme.secondary)}30;
     border-radius: 4px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background-color: #ffffff50;
+    background-color: ${({ theme }) => getFontColor(theme.secondary)}50;
   }
 
   ::-webkit-scrollbar-track {
     border-radius: 4px;
-    background-color: #ffffff15;
+    background-color: ${({ theme }) => getFontColor(theme.secondary)}15;
   }
 `;
 
@@ -473,3 +541,6 @@ const StyledButton = styled(Button)`
     border-color: ${({ theme }) => getFontColor(theme.secondary) + "82"};
   }
 `;
+StyledButton.defaultProps = {
+  variant: "outlined",
+};

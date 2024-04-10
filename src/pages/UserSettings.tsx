@@ -11,16 +11,15 @@ import {
   TextField,
   Tooltip,
 } from "@mui/material";
-
 import { useContext, useEffect, useState } from "react";
 import styled from "@emotion/styled";
 import {
   AddAPhotoRounded,
-  CheckCircleRounded,
   CheckRounded,
   Delete,
   Logout,
   PersonalVideoRounded,
+  SaveRounded,
   Settings,
   TodayRounded,
 } from "@mui/icons-material";
@@ -28,9 +27,8 @@ import { PROFILE_PICTURE_MAX_LENGTH, USER_NAME_MAX_LENGTH } from "../constants";
 import { SettingsDialog, TopBar } from "../components";
 import { ColorElement, ColorPalette, DialogBtn, Themes } from "../styles";
 import { defaultUser } from "../constants/defaultUser";
-import toast from "react-hot-toast";
 import { UserContext } from "../contexts/UserContext";
-import { timeAgo, getFontColor } from "../utils";
+import { timeAgo, getFontColor, showToast } from "../utils";
 import { useSystemTheme } from "../hooks/useSystemTheme";
 
 const UserSettings = () => {
@@ -45,14 +43,15 @@ const UserSettings = () => {
   const systemTheme = useSystemTheme();
 
   useEffect(() => {
-    document.title = `Advanced Tasks - User ${name ? `(${name})` : ""}`;
+    document.title = `Todo App - User ${name ? `(${name})` : ""}`;
   }, [name]);
 
   const handleSaveName = () => {
-    if (userName.length <= USER_NAME_MAX_LENGTH) {
+    if (userName.length <= USER_NAME_MAX_LENGTH && userName !== name) {
       setUser({ ...user, name: userName });
-      toast.success((t) => (
-        <div onClick={() => toast.dismiss(t.id)}>
+
+      showToast(
+        <div>
           Changed user name
           {userName && (
             <>
@@ -62,7 +61,7 @@ const UserSettings = () => {
           )}
           .
         </div>
-      ));
+      );
 
       setUserName("");
     }
@@ -81,9 +80,7 @@ const UserSettings = () => {
   const handleLogout = () => {
     setUser(defaultUser);
     handleLogoutConfirmationClose();
-    toast.success((t) => (
-      <div onClick={() => toast.dismiss(t.id)}>You have been successfully logged out</div>
-    ));
+    showToast("You have been successfully logged out");
   };
 
   const handleSaveImage = () => {
@@ -96,8 +93,7 @@ const UserSettings = () => {
         ...prevUser,
         profilePicture: profilePictureURL,
       }));
-
-      toast.success((t) => <div onClick={() => toast.dismiss(t.id)}>Changed profile picture.</div>);
+      showToast("Changed profile picture.");
     }
   };
 
@@ -125,7 +121,7 @@ const UserSettings = () => {
                 onClick={handleOpenImageDialog}
                 sx={{
                   background: "#9c9c9c81",
-                  backdropFilter: "blur(6px)",
+                  backdropFilter: "blur(10px)",
                   cursor: "pointer",
                 }}
               >
@@ -136,13 +132,6 @@ const UserSettings = () => {
             <Avatar
               onClick={handleOpenImageDialog}
               src={(profilePicture as string) || undefined}
-              onError={() => {
-                setUser((prevUser) => ({
-                  ...prevUser,
-                  profilePicture: null,
-                }));
-                throw new Error("Error in profile picture URL");
-              }}
               sx={{
                 width: "96px",
                 height: "96px",
@@ -170,7 +159,6 @@ const UserSettings = () => {
             &nbsp;Registered {timeAgo(createdAt)}
           </CreatedAtDate>
         </Tooltip>
-
         <Grid
           container
           maxWidth="300px"
@@ -180,12 +168,13 @@ const UserSettings = () => {
           justifyContent="left"
           alignItems="center"
           gap={1}
-          sx={{ background: "#d9d9d9", padding: "10px", borderRadius: "32px" }}
+          sx={{ background: "#d9d9d9", padding: "10px", borderRadius: "32px", overflowY: "auto" }}
         >
           <Grid item>
             <Tooltip title={`System (${systemTheme})`}>
               <ColorElement
-                clr="#3d3e59"
+                clr={systemTheme === "dark" ? "#3d3e59" : "#ffffff"}
+                style={{ transition: ".3s background" }}
                 size="40px"
                 onClick={() => {
                   setUser((prevUser) => ({
@@ -194,27 +183,16 @@ const UserSettings = () => {
                   }));
                 }}
               >
-                <Badge
-                  badgeContent={
-                    user.theme === "system" ? (
-                      <CheckRounded
-                        sx={{
-                          fontSize: "18px",
-                          color: "white",
-                          background: "#141414",
-                          borderRadius: "100px",
-                        }}
-                      />
-                    ) : undefined
-                  }
-                >
-                  <PersonalVideoRounded sx={{ color: "white" }} />
+                <Badge badgeContent={user.theme === "system" ? <CheckIcon /> : undefined}>
+                  <PersonalVideoRounded
+                    sx={{ color: systemTheme === "dark" ? "white" : "black" }}
+                  />
                 </Badge>
               </ColorElement>
             </Tooltip>
           </Grid>
           {Themes.map((theme) => (
-            <Grid item key={theme.name}>
+            <Grid key={theme.name}>
               <Tooltip title={theme.name[0].toUpperCase() + theme.name.replace(theme.name[0], "")}>
                 <ColorElement
                   clr={theme.MuiTheme.palette.primary.main}
@@ -228,28 +206,33 @@ const UserSettings = () => {
                     }));
                   }}
                 >
-                  {theme.name === user.theme && (
-                    <CheckIcon clr={getFontColor(theme.MuiTheme.palette.secondary.main)} />
-                  )}
+                  <Badge badgeContent={user.theme === theme.name ? <CheckIcon /> : undefined}>
+                    <div style={{ width: "24px", height: "24px" }} />
+                  </Badge>
                 </ColorElement>
               </Tooltip>
             </Grid>
           ))}
         </Grid>
-
-        <StyledInput
+        <TextField
+          sx={{ width: "300px" }}
           label={name === null ? "Add Name" : "Change Name"}
           value={userName}
           onChange={(e) => setUserName(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSaveName()}
-          error={userName.length > USER_NAME_MAX_LENGTH}
+          error={userName.length > USER_NAME_MAX_LENGTH || (userName === name && name !== "")}
           helperText={
             userName.length > USER_NAME_MAX_LENGTH
-              ? `Name is too long maximum ${USER_NAME_MAX_LENGTH} characters`
+              ? `Name exceeds ${USER_NAME_MAX_LENGTH} characters`
+              : userName.length > 0 && userName !== name
+              ? `${userName.length}/${USER_NAME_MAX_LENGTH}`
+              : userName === name && name !== ""
+              ? "New username matches old one."
               : ""
           }
           autoComplete="nickname"
         />
+
         <SaveBtn
           onClick={handleSaveName}
           disabled={userName.length > USER_NAME_MAX_LENGTH || userName === name}
@@ -269,10 +252,10 @@ const UserSettings = () => {
       <Dialog open={openChangeImage} onClose={handleCloseImageDialog}>
         <DialogTitle>Change Profile Picture</DialogTitle>
         <DialogContent>
-          <StyledInput
+          <TextField
             autoFocus
             label="Link to profile picture"
-            sx={{ margin: "8px 0" }}
+            sx={{ my: "8px", width: "300px" }}
             value={profilePictureURL}
             onChange={(e) => {
               setProfilePictureURL(e.target.value);
@@ -291,9 +274,7 @@ const UserSettings = () => {
           <Button
             onClick={() => {
               handleCloseImageDialog();
-              toast.success((t) => (
-                <div onClick={() => toast.dismiss(t.id)}>Deleted profile image.</div>
-              ));
+              showToast("Deleted profile image.");
               setUser({ ...user, profilePicture: null });
             }}
             color="error"
@@ -312,7 +293,7 @@ const UserSettings = () => {
             }
             onClick={handleSaveImage}
           >
-            Save
+            <SaveRounded /> &nbsp; Save
           </DialogBtn>
         </DialogActions>
       </Dialog>
@@ -356,23 +337,17 @@ const Container = styled.div`
   transform: translate(-50%, -50%);
 `;
 
-const CheckIcon = styled(CheckCircleRounded)<{ clr: string }>`
-  color: ${({ clr }) => clr};
-  font-size: 36px;
-  /* backdrop-filter: blur(20px);
-    border-radius: 100px;
-    transform: rotate(3deg);
-    padding: 6px; */
+const CheckIcon = styled(CheckRounded)`
+  font-size: 18px;
+  padding: 2px;
+  color: white;
+  background: #141414;
+  border-radius: 100px;
 `;
 
-const StyledInput = styled(TextField)`
-  & .MuiInputBase-root {
-    border-radius: 16px;
-    width: 300px;
-  }
-`;
 const SaveBtn = styled(Button)`
   width: 300px;
+  font-weight: 600;
   border: none;
   background: ${({ theme }) => theme.primary};
   color: ${({ theme }) => getFontColor(theme.primary)};

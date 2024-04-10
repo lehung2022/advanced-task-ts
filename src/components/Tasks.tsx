@@ -1,10 +1,11 @@
-import type { Category, Task } from "../types/user";
-import { ReactNode, useContext, useEffect, useState } from "react";
-import { calculateDateDifference, formatDate, getFontColor, iOS } from "../utils";
+import type { Category, Task, UUID } from "../types/user";
+import { ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { calculateDateDifference, formatDate, getFontColor, iOS, showToast } from "../utils";
 import {
   CancelRounded,
   Close,
   Delete,
+  DeleteRounded,
   DoneAll,
   DoneRounded,
   Link,
@@ -23,7 +24,7 @@ import {
   Tooltip,
 } from "@mui/material";
 import { Emoji, EmojiStyle } from "emoji-picker-react";
-import { CategoryBadge, EditTask, TaskMenu } from ".";
+import { CategoryBadge, EditTask, TaskIcon, TaskMenu } from ".";
 import {
   CategoriesListContainer,
   ColorPalette,
@@ -48,7 +49,6 @@ import {
   TasksContainer,
   TimeLeft,
 } from "../styles";
-import toast from "react-hot-toast";
 import { useResponsiveDisplay } from "../hooks/useResponsiveDisplay";
 import { UserContext } from "../contexts/UserContext";
 import { useStorageState } from "../hooks/useStorageState";
@@ -64,45 +64,60 @@ export const Tasks: React.FC = () => {
   const { user, setUser } = useContext(UserContext);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
-  const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
+  const [selectedTaskId, setSelectedTaskId] = useState<UUID | null>(null);
   const [search, setSearch] = useStorageState<string>("", "search", "sessionStorage");
-  const [expandedTasks, setExpandedTasks] = useState<Set<number>>(new Set()); //FIXME: use storage state for set
+  const [expandedTasks, setExpandedTasks] = useState<Set<UUID>>(new Set()); //FIXME: use storage state for set
   const [deleteDialogOpen, setDeleteDialogOpen] = useState<boolean>(false);
   const [editModalOpen, setEditModalOpen] = useState<boolean>(false);
-  const [multipleSelectedTasks, setMultipleSelectedTasks] = useStorageState<number[]>(
+  const [multipleSelectedTasks, setMultipleSelectedTasks] = useStorageState<UUID[]>(
     [],
     "selectedTasks",
     "sessionStorage"
   );
   const [deleteSelectedOpen, setDeleteSelectedOpen] = useState<boolean>(false);
   const [categories, setCategories] = useState<Category[] | undefined>(undefined);
-  const [selectedCatId, setSelectedCatId] = useStorageState<number | undefined>(
+  const [selectedCatId, setSelectedCatId] = useStorageState<UUID | undefined>(
     undefined,
     "selectedCategory",
     "sessionStorage"
   );
   const [categoryCounts, setCategoryCounts] = useState<{
-    [categoryId: number]: number;
+    [categoryId: UUID]: number;
   }>({});
 
   const isMobile = useResponsiveDisplay();
   const theme = useTheme();
   useCtrlS();
 
-  const listFormat = new Intl.ListFormat("en-US", {
-    style: "long",
-    type: "conjunction",
-  });
+  const listFormat = useMemo(
+    () =>
+      new Intl.ListFormat("en-US", {
+        style: "long",
+        type: "conjunction",
+      }),
+    []
+  );
 
   const selectedTask = user.tasks.find((task) => task.id === selectedTaskId) || ({} as Task);
 
+  // const scrollToRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+
   // Handler for clicking the more options button in a task
-  const handleClick = (event: React.MouseEvent<HTMLButtonElement>, taskId: number) => {
+  const handleClick = (event: React.MouseEvent<HTMLButtonElement>, taskId: UUID) => {
     setAnchorEl(event.currentTarget);
     setSelectedTaskId(taskId);
+
     if (!isMobile && !expandedTasks.has(taskId)) {
       toggleShowMore(taskId);
     }
+    // const element = scrollToRefs.current[taskId.toString()];
+    // if (element) {
+    //   element.scrollIntoView({
+    //     behavior: "smooth",
+    //     block: "center",
+    //     inline: "center",
+    //   });
+    // }
   };
 
   const handleCloseMoreMenu = () => {
@@ -113,49 +128,39 @@ export const Tasks: React.FC = () => {
     }
   };
 
-  const reorderTasks = (tasks: Task[]): Task[] => {
-    // Reorders tasks by moving pinned tasks to the top
-    let pinnedTasks = tasks.filter((task) => task.pinned);
-    let unpinnedTasks = tasks.filter((task) => !task.pinned);
+  const reorderTasks = useCallback(
+    (tasks: Task[]): Task[] => {
+      // Separate tasks into pinned and unpinned
+      let pinnedTasks = tasks.filter((task) => task.pinned);
+      let unpinnedTasks = tasks.filter((task) => !task.pinned);
 
-    // Filter tasks based on the selected category
-    if (selectedCatId !== undefined) {
-      unpinnedTasks = unpinnedTasks.filter((task) => {
-        if (task.category) {
-          return task.category.some((category) => category.id === selectedCatId);
-        }
-        return false;
-      });
-      pinnedTasks = pinnedTasks.filter((task) => {
-        if (task.category) {
-          return task.category.some((category) => category.id === selectedCatId);
-        }
-        return false;
-      });
-    }
+      // Filter tasks based on the selected category
+      if (selectedCatId !== undefined) {
+        const categoryFilter = (task: Task) =>
+          task.category?.some((category) => category.id === selectedCatId) ?? false;
+        unpinnedTasks = unpinnedTasks.filter(categoryFilter);
+        pinnedTasks = pinnedTasks.filter(categoryFilter);
+      }
 
-    // Filter tasks based on the search input
-    const searchLower = search.toLowerCase();
-    unpinnedTasks = unpinnedTasks.filter(
-      (task) =>
+      // Filter tasks based on the search input
+      const searchLower = search.toLowerCase();
+      const searchFilter = (task: Task) =>
         task.name.toLowerCase().includes(searchLower) ||
-        (task.description && task.description.toLowerCase().includes(searchLower))
-    );
-    pinnedTasks = pinnedTasks.filter(
-      (task) =>
-        task.name.toLowerCase().includes(searchLower) ||
-        (task.description && task.description.toLowerCase().includes(searchLower))
-    );
+        (task.description && task.description.toLowerCase().includes(searchLower));
+      unpinnedTasks = unpinnedTasks.filter(searchFilter);
+      pinnedTasks = pinnedTasks.filter(searchFilter);
 
-    // move done tasks to bottom
-    if (user.settings[0]?.doneToBottom) {
-      const doneTasks = unpinnedTasks.filter((task) => task.done);
-      const notDoneTasks = unpinnedTasks.filter((task) => !task.done);
-      return [...pinnedTasks, ...notDoneTasks, ...doneTasks];
-    }
+      // Move done tasks to bottom if the setting is enabled
+      if (user.settings[0]?.doneToBottom) {
+        const doneTasks = unpinnedTasks.filter((task) => task.done);
+        const notDoneTasks = unpinnedTasks.filter((task) => !task.done);
+        return [...pinnedTasks, ...notDoneTasks, ...doneTasks];
+      }
 
-    return [...pinnedTasks, ...unpinnedTasks];
-  };
+      return [...pinnedTasks, ...unpinnedTasks];
+    },
+    [search, selectedCatId, user.settings]
+  );
 
   const handleDeleteTask = () => {
     // Opens the delete task dialog
@@ -175,11 +180,11 @@ export const Tasks: React.FC = () => {
       }));
 
       setDeleteDialogOpen(false);
-      toast.success((t) => (
-        <div onClick={() => toast.dismiss(t.id)}>
+      showToast(
+        <div>
           Deleted Task - <b>{user.tasks.find((task) => task.id === selectedTaskId)?.name}</b>
         </div>
-      ));
+      );
     }
   };
   const cancelDeleteTask = () => {
@@ -187,7 +192,7 @@ export const Tasks: React.FC = () => {
     setDeleteDialogOpen(false);
   };
 
-  const handleSelectTask = (taskId: number) => {
+  const handleSelectTask = (taskId: UUID) => {
     setAnchorEl(null);
     setMultipleSelectedTasks((prevSelectedTaskIds) => {
       if (prevSelectedTaskIds.includes(taskId)) {
@@ -232,7 +237,7 @@ export const Tasks: React.FC = () => {
     });
 
     // Calculate category counts
-    const counts: { [categoryId: number]: number } = {};
+    const counts: { [categoryId: UUID]: number } = {};
     uniqueCategories.forEach((category) => {
       const categoryTasks = tasks.filter((task) =>
         task.category?.some((cat) => cat.id === category.id)
@@ -249,9 +254,9 @@ export const Tasks: React.FC = () => {
 
     setCategories(uniqueCategories);
     setCategoryCounts(counts);
-  }, [user.tasks, search]);
+  }, [user.tasks, search, reorderTasks]);
 
-  const toggleShowMore = (taskId: number) => {
+  const toggleShowMore = (taskId: UUID) => {
     setExpandedTasks((prevExpandedTasks) => {
       const newSet = new Set(prevExpandedTasks);
       newSet.has(taskId) ? newSet.delete(taskId) : newSet.add(taskId);
@@ -273,38 +278,39 @@ export const Tasks: React.FC = () => {
       )
     );
   };
-  const checkOverdueTasks = (tasks: Task[]) => {
-    const overdueTasks = tasks.filter((task) => {
-      return task.deadline && new Date() > new Date(task.deadline) && !task.done;
-    });
+  const checkOverdueTasks = useCallback(
+    (tasks: Task[]) => {
+      const overdueTasks = tasks.filter((task) => {
+        return task.deadline && new Date() > new Date(task.deadline) && !task.done;
+      });
 
-    if (overdueTasks.length > 0) {
-      const taskNames = overdueTasks.map((task) => task.name);
+      if (overdueTasks.length > 0) {
+        const taskNames = overdueTasks.map((task) => task.name);
 
-      toast.error(
-        (t) => (
-          <div
-            translate="no"
-            onClick={() => toast.dismiss(t.id)}
-            style={{ wordBreak: "break-word" }}
-          >
+        showToast(
+          <div translate="no" style={{ wordBreak: "break-word" }}>
             <b translate="yes">Overdue task{overdueTasks.length > 1 && "s"}: </b>
             {listFormat.format(taskNames)}
-          </div>
-        ),
-        {
-          duration: 3400,
-          icon: <RingAlarm animate sx={{ color: ColorPalette.red }} />,
-          style: {
-            borderColor: ColorPalette.red,
-          },
-        }
-      );
-    }
-  };
+          </div>,
+          {
+            type: "error",
+            disableVibrate: true,
+            duration: 3400,
+            icon: <RingAlarm animate sx={{ color: ColorPalette.red }} />,
+            style: {
+              borderColor: ColorPalette.red,
+              boxShadow: user.settings[0].enableGlow ? `0 0 18px -8px ${ColorPalette.red}` : "none",
+            },
+          }
+        );
+      }
+    },
+    [listFormat, user.settings]
+  );
 
   useEffect(() => {
     checkOverdueTasks(user.tasks);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -374,7 +380,7 @@ export const Tasks: React.FC = () => {
                           marginLeft: "4px",
                         }}
                       >
-                        ({categoryCounts[cat.id] || 0})
+                        ({categoryCounts[cat.id] || crypto.randomUUID()})
                       </span>
                     </div>
                   }
@@ -456,6 +462,7 @@ export const Tasks: React.FC = () => {
         {user.tasks.length !== 0 ? (
           reorderTasks(user.tasks).map((task) => (
             <TaskContainer
+              // ref={(ref) => (scrollToRefs.current[task.id.toString()] = ref)}
               key={task.id}
               id={task.id.toString()}
               backgroundColor={task.color}
@@ -598,7 +605,7 @@ export const Tasks: React.FC = () => {
           <div
             style={{
               textAlign: "center",
-              fontSize: "18px",
+              fontSize: "20px",
               opacity: 0.9,
               marginTop: "18px",
             }}
@@ -606,6 +613,9 @@ export const Tasks: React.FC = () => {
             <b>No tasks found</b>
             <br />
             Try searching with different keywords.
+            <div style={{ marginTop: "14px" }}>
+              <TaskIcon scale={0.8} />
+            </div>
           </div>
         )}
         <EditTask
@@ -639,7 +649,7 @@ export const Tasks: React.FC = () => {
       <Dialog open={deleteDialogOpen} onClose={cancelDeleteTask}>
         <DialogTitle>Are you sure you want to delete the task?</DialogTitle>
         <DialogContent>
-          {selectedTask.emoji !== undefined && (
+          {selectedTask !== undefined && (
             <>
               {selectedTask.emoji && (
                 <p
@@ -676,7 +686,7 @@ export const Tasks: React.FC = () => {
             Cancel
           </DialogBtn>
           <DialogBtn onClick={confirmDeleteTask} color="error">
-            Delete
+            <DeleteRounded /> &nbsp; Delete
           </DialogBtn>
         </DialogActions>
       </Dialog>

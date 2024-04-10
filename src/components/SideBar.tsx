@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import {
   Avatar,
   Button,
@@ -19,8 +19,11 @@ import {
   BugReportRounded,
   CategoryRounded,
   Favorite,
+  FiberManualRecord,
   GetAppRounded,
   GitHub,
+  InstallDesktopRounded,
+  InstallMobileRounded,
   Logout,
   SettingsRounded,
   StarRounded,
@@ -29,15 +32,15 @@ import {
 import { useNavigate } from "react-router-dom";
 import { defaultUser } from "../constants/defaultUser";
 import { SettingsDialog } from ".";
-import toast from "react-hot-toast";
 import logo from "../assets/logo256.png";
-import { ColorPalette } from "../styles";
+import { ColorPalette, pulseAnimation, ring } from "../styles";
 import { UserContext } from "../contexts/UserContext";
 import { iOS } from "../utils/iOS";
 import { fetchGitHubInfo } from "../services/githubApi";
-import { timeAgo } from "../utils";
+import { showToast, timeAgo } from "../utils";
+import bmcLogo from "../assets/bmc-logo.svg";
 
-export const ProfileAvatar = () => {
+export const ProfileSidebar = () => {
   const { user, setUser } = useContext(UserContext);
   const n = useNavigate();
 
@@ -86,12 +89,57 @@ export const ProfileAvatar = () => {
   const handleLogout = () => {
     setUser(defaultUser);
     handleLogoutConfirmationClose();
-    toast.success("You have been successfully logged out");
+    showToast("You have been successfully logged out");
+  };
+
+  interface BeforeInstallPromptEvent extends Event {
+    readonly platforms: ReadonlyArray<string>;
+    readonly userChoice: Promise<{
+      outcome: "accepted" | "dismissed";
+      platform: string;
+    }>;
+    prompt(): Promise<void>;
+  }
+
+  const [supportsPWA, setSupportsPWA] = useState<boolean>(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [isAppInstalled, setIsAppInstalled] = useState<boolean>(false);
+
+  useEffect(() => {
+    const beforeInstallPromptHandler = (e: Event) => {
+      e.preventDefault();
+      setSupportsPWA(true);
+      setDeferredPrompt(e as BeforeInstallPromptEvent);
+    };
+
+    const detectAppInstallation = () => {
+      window.matchMedia("(display-mode: standalone)").addEventListener("change", (e) => {
+        setIsAppInstalled(e.matches);
+      });
+    };
+
+    window.addEventListener("beforeinstallprompt", beforeInstallPromptHandler);
+    detectAppInstallation();
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", beforeInstallPromptHandler);
+    };
+  }, []);
+
+  const installPWA = () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then((choiceResult) => {
+        if (choiceResult.outcome === "accepted") {
+          showToast("App installed successfully!");
+        }
+      });
+    }
   };
 
   return (
     <Container>
-      <Tooltip title={user.name || "User"} translate="no">
+      <Tooltip title={<div translate="no">{user.name || "User"}</div>}>
         <IconButton
           id="basic-button"
           aria-controls={open ? "basic-menu" : undefined}
@@ -109,7 +157,7 @@ export const ProfileAvatar = () => {
                 profilePicture: null,
               }));
 
-              toast.error("Error in profile picture URL");
+              showToast("Error in profile picture URL", { type: "error" });
               throw new Error("Error in profile picture URL");
             }}
             sx={{
@@ -128,14 +176,10 @@ export const ProfileAvatar = () => {
         disableBackdropTransition={!iOS}
         disableDiscovery={iOS}
         id="basic-menu"
-        // anchorEl={anchorEl}
         anchor="right"
         open={open}
         onOpen={() => console.log("")}
         onClose={handleClose}
-        // MenuListProps={{
-        //   "aria-labelledby": "basic-button",
-        // }}
       >
         <LogoContainer
           translate="no"
@@ -146,7 +190,7 @@ export const ProfileAvatar = () => {
         >
           <Logo src={logo} alt="logo" />
           <h2>
-            <span style={{ color: "#7764E8" }}>Advanced</span> Tasks
+            <span style={{ color: "#7764E8" }}>Todo</span> App
             <span style={{ color: "#7764E8" }}>.</span>
           </h2>
         </LogoContainer>
@@ -160,13 +204,16 @@ export const ProfileAvatar = () => {
         >
           <TaskAltRounded /> &nbsp; Tasks
           {user.tasks.filter((task) => !task.done).length > 0 && (
-            <MenuLabel>
-              {user.tasks.filter((task) => !task.done).length > 99
-                ? "99+"
-                : user.tasks.filter((task) => !task.done).length}
-            </MenuLabel>
+            <Tooltip title={`${user.tasks.filter((task) => !task.done).length} tasks to do`}>
+              <MenuLabel>
+                {user.tasks.filter((task) => !task.done).length > 99
+                  ? "99+"
+                  : user.tasks.filter((task) => !task.done).length}
+              </MenuLabel>
+            </Tooltip>
           )}
         </StyledMenuItem>
+
         <StyledMenuItem
           onClick={() => {
             n("/add");
@@ -186,23 +233,17 @@ export const ProfileAvatar = () => {
             <CategoryRounded /> &nbsp; Categories
           </StyledMenuItem>
         )}
+
         <StyledMenuItem
           onClick={() => {
             n("/import-export");
             handleClose();
           }}
         >
-          <GetAppRounded /> &nbsp; Import/Export
+          <GetAppRounded /> &nbsp; Transfer
         </StyledMenuItem>
-        {/* <StyledMenuItem
-          onClick={() => {
-            n("/user");
-            handleClose();
-          }}
-        >
-          <PersonRounded /> &nbsp; Profile
-        </StyledMenuItem> */}
-        <Divider sx={{ margin: "0 8px" }} />
+
+        <StyledDivider />
         <StyledMenuItem
           translate="no"
           onClick={() => {
@@ -211,30 +252,58 @@ export const ProfileAvatar = () => {
         >
           <GitHub /> &nbsp; Github{" "}
           {stars && (
-            <MenuLabel clr="#ff9d00">
-              <span style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <StarRounded style={{ fontSize: "18px" }} />
-                &nbsp;{stars}
-              </span>
-            </MenuLabel>
+            <Tooltip title={`${stars} stars on Github`}>
+              <MenuLabel clr="#ff9d00">
+                <span style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <StarRounded style={{ fontSize: "18px" }} />
+                  &nbsp;{stars}
+                </span>
+              </MenuLabel>
+            </Tooltip>
           )}
         </StyledMenuItem>
+
         <StyledMenuItem
           onClick={() => {
-            window.open("https://github.com/lehung2022/advanced-task-ts/issues/new");
+            window.open("https://github.com/maciekt07/TodoApp/issues/new");
           }}
         >
           <BugReportRounded /> &nbsp; Report Issue{" "}
           {Boolean(issuesCount || issuesCount === 0) && (
-            <MenuLabel clr={issuesCount && issuesCount > 0 ? ColorPalette.red : "#3bb61c"}>
-              <span style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <AdjustRounded style={{ fontSize: "18px" }} />
-                &nbsp;
-                {issuesCount}
-              </span>
-            </MenuLabel>
+            <Tooltip title={`${issuesCount} open issues`}>
+              <MenuLabel clr={issuesCount && issuesCount > 0 ? ColorPalette.red : "#3bb61c"}>
+                <span style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <AdjustRounded style={{ fontSize: "18px" }} />
+                  &nbsp;
+                  {issuesCount}
+                </span>
+              </MenuLabel>
+            </Tooltip>
           )}
         </StyledMenuItem>
+
+        <StyledMenuItem
+          className="bmcMenu"
+          onClick={() => {
+            window.open("https://www.buymeacoffee.com/maciekt07");
+          }}
+        >
+          <BmcIcon className="bmc-icon" src={bmcLogo} /> &nbsp; Buy me a coffee{" "}
+        </StyledMenuItem>
+
+        <StyledDivider />
+
+        {supportsPWA && !isAppInstalled && (
+          <StyledMenuItem onClick={installPWA}>
+            {/Android/.test(navigator.userAgent) ? (
+              <InstallMobileRounded />
+            ) : (
+              <InstallDesktopRounded />
+            )}
+            &nbsp; Install App
+          </StyledMenuItem>
+        )}
+
         <StyledMenuItem onClick={handleLogoutConfirmationOpen} sx={{ color: "#ff4040 !important" }}>
           <Logout /> &nbsp; Logout
         </StyledMenuItem>
@@ -242,8 +311,11 @@ export const ProfileAvatar = () => {
         <div
           style={{
             marginTop: "auto",
-            // marginLeft: "18px",
-            marginBottom: iOS ? "38px" : "18px",
+            marginBottom:
+              window.matchMedia("(display-mode: standalone)").matches &&
+              /Mobi/.test(navigator.userAgent)
+                ? "38px"
+                : "16px",
             display: "flex",
             flexDirection: "column",
             gap: "8px",
@@ -264,8 +336,9 @@ export const ProfileAvatar = () => {
             }}
           >
             <SettingsRounded /> &nbsp; Settings
+            {user.settings[0] === defaultUser.settings[0] && <PulseMenuLabel />}
           </StyledMenuItem>
-          <Divider sx={{ margin: "0 8px" }} />
+          <StyledDivider />
           <StyledMenuItem
             translate="no"
             onClick={() => {
@@ -277,7 +350,6 @@ export const ProfileAvatar = () => {
               alignItems: "center",
               gap: "10px",
               background: "#d7d7d7",
-              // marginBottom: "12px",
             }}
           >
             <Avatar
@@ -286,31 +358,34 @@ export const ProfileAvatar = () => {
             >
               {user.name ? user.name[0].toUpperCase() : undefined}
             </Avatar>
-            <h4 style={{ margin: 0, fontWeight: 600 }}> {user.name || "User"}</h4>
+            <h4 style={{ margin: 0, fontWeight: 600 }}> {user.name || "User"}</h4>{" "}
+            {(user.name === null || user.name === "") &&
+              user.profilePicture === null &&
+              user.theme! == defaultUser.theme && <PulseMenuLabel />}
           </StyledMenuItem>
-          <Divider sx={{ margin: "0 8px" }} />
+          <StyledDivider />
           <CreditsContainer translate="no">
             <span style={{ display: "flex", alignItems: "center" }}>
               Made with &nbsp;
-              <Favorite sx={{ fontSize: "16px" }} />
+              <Favorite sx={{ fontSize: "14px" }} />
             </span>
             <span style={{ marginLeft: "6px", marginRight: "4px" }}>by</span>
             <a
               style={{ textDecoration: "none", color: "inherit" }}
-              href="https://github.com/lehung2022"
+              href="https://github.com/maciekt07"
             >
-              黎興
+              maciekt07
             </a>
-
-            <br />
           </CreditsContainer>
           <CreditsContainer>
             {lastUpdate && (
               <Tooltip title={timeAgo(new Date(lastUpdate))}>
-                <span style={{ margin: 0 }}>
-                  Last Update: {new Date(lastUpdate).toLocaleDateString()}
-                  {" • "}
-                  {new Date(lastUpdate).toLocaleTimeString()}
+                <span>
+                  Last update:{" "}
+                  {new Intl.DateTimeFormat(navigator.language, {
+                    dateStyle: "long",
+                    timeStyle: "medium",
+                  }).format(new Date(lastUpdate))}
                 </span>
               </Tooltip>
             )}
@@ -354,11 +429,16 @@ const StyledSwipeableDrawer = styled(SwipeableDrawer)`
     background: #f9fafc;
     z-index: 999;
 
-    @media (max-width: 1024px) {
-      min-width: 270px;
+    @media (min-width: 1920px) {
+      min-width: 320px;
     }
+
+    @media (max-width: 1024px) {
+      min-width: 280px;
+    }
+
     @media (max-width: 600px) {
-      min-width: 55vw;
+      min-width: 56vw;
     }
   }
 `;
@@ -371,14 +451,31 @@ const StyledMenuItem = styled(MenuItem)`
   display: flex;
   font-weight: 500;
   color: #101727;
-
   align-items: center;
   gap: 6px;
 
+  & svg,
+  .bmc-icon {
+    transition: 0.4s transform;
+  }
+
   &:hover {
     background-color: #f0f0f0;
+    & svg[data-testid="GitHubIcon"] {
+      transform: rotateY(${2 * Math.PI}rad);
+    }
+    & svg[data-testid="SettingsRoundedIcon"] {
+      transform: rotate(180deg);
+    }
+    & svg[data-testid="BugReportRoundedIcon"] {
+      transform: rotate(45deg) scale(0.9) translateY(-20%);
+    }
+    & .bmc-icon {
+      animation: ${ring} 2.5s ease-in alternate;
+    }
   }
 `;
+
 const DialogBtn = styled(Button)`
   padding: 8px 12px;
   border-radius: 12px;
@@ -394,9 +491,31 @@ const MenuLabel = styled.span<{ clr?: string }>`
   padding: 2px 12px;
   border-radius: 32px;
   font-size: 14px;
-  /* width: 40px;
-  text-align: center; */
 `;
+
+const StyledDivider = styled(Divider)`
+  margin: 0 8px;
+`;
+
+const PulseMenuLabel = styled(MenuLabel)`
+  animation: ${({ theme }) => pulseAnimation(theme.primary, 6)} 1.2s infinite;
+  padding: 6px;
+  margin-right: 4px;
+`;
+
+PulseMenuLabel.defaultProps = {
+  children: (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <FiberManualRecord style={{ fontSize: "16px" }} />
+    </div>
+  ),
+};
 
 const LogoContainer = styled.div`
   display: flex;
@@ -405,6 +524,12 @@ const LogoContainer = styled.div`
   margin-top: 8px;
   gap: 16px;
   cursor: pointer;
+`;
+
+const BmcIcon = styled.img`
+  width: 1em;
+  height: 1em;
+  font-size: 1.5rem;
 `;
 
 const Logo = styled.img`
@@ -416,7 +541,6 @@ const CreditsContainer = styled.div`
   font-size: 12px;
   margin: 0;
   color: #101727c0;
-
   text-align: center;
   display: flex;
   align-items: center;

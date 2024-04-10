@@ -1,24 +1,33 @@
 import { useContext, useEffect, useState } from "react";
 import { ColorPicker, CustomEmojiPicker, TopBar } from "../components";
-import { Category } from "../types/user";
+import { Category, UUID } from "../types/user";
 import { useNavigate } from "react-router-dom";
 import { Emoji } from "emoji-picker-react";
-import styled from "@emotion/styled";
+
 import {
-  Button,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   IconButton,
-  TextField,
   Tooltip,
 } from "@mui/material";
-import { Delete, Edit } from "@mui/icons-material";
+import { Delete, Edit, SaveRounded, DeleteRounded } from "@mui/icons-material";
 import { CATEGORY_NAME_MAX_LENGTH } from "../constants";
-import { getFontColor } from "../utils";
-import { ColorPalette, DialogBtn, fadeIn } from "../styles";
-import toast from "react-hot-toast";
+import { getFontColor, showToast } from "../utils";
+import {
+  ActionButton,
+  AddCategoryButton,
+  AddContainer,
+  CategoriesContainer,
+  CategoryContent,
+  CategoryElement,
+  CategoryElementsContainer,
+  ColorPalette,
+  DialogBtn,
+  EditNameInput,
+  CategoryInput,
+} from "../styles";
 import NotFound from "./NotFound";
 import { UserContext } from "../contexts/UserContext";
 import { useStorageState } from "../hooks/useStorageState";
@@ -34,7 +43,7 @@ const Categories = () => {
   const [color, setColor] = useStorageState<string>(theme.primary, "catColor", "sessionStorage");
 
   const [openDeleteDialog, setOpenDeleteDialog] = useState<boolean>(false);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<number>(0);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<UUID | undefined>();
 
   const [openEditDialog, setOpenEditDialog] = useState<boolean>(false);
   const [editName, setEditName] = useState<string>("");
@@ -45,14 +54,14 @@ const Categories = () => {
   const n = useNavigate();
 
   useEffect(() => {
-    document.title = "Advanced Tasks - Categories";
+    document.title = "Advanced Task - Categories";
     if (!user.settings[0].enableCategories) {
       n("/");
     }
     if (name.length > CATEGORY_NAME_MAX_LENGTH) {
       setNameError(`Name is too long maximum ${CATEGORY_NAME_MAX_LENGTH} characters`);
     }
-  }, []);
+  }, [n, name.length, user.settings]);
 
   useEffect(() => {
     setEditColor(
@@ -60,9 +69,9 @@ const Categories = () => {
     );
     setEditName(user.categories.find((cat) => cat.id === selectedCategoryId)?.name || "");
     setEditNameError("");
-  }, [selectedCategoryId]);
+  }, [selectedCategoryId, user.categories]);
 
-  const handleDelete = (categoryId: number) => {
+  const handleDelete = (categoryId: UUID | undefined) => {
     if (categoryId) {
       const categoryName =
         user.categories.find((category) => category.id === categoryId)?.name || "";
@@ -81,11 +90,12 @@ const Categories = () => {
         categories: updatedCategories,
         tasks: updatedTasks,
       });
-      toast.success(() => (
+
+      showToast(
         <div>
           Deleted category - <b>{categoryName}.</b>
         </div>
-      ));
+      );
     }
   };
 
@@ -115,16 +125,18 @@ const Categories = () => {
         return;
       }
       const newCategory: Category = {
-        id: new Date().getTime() + Math.floor(Math.random() * 1000),
+        id: crypto.randomUUID(),
         name,
         emoji: emoji !== "" && emoji !== null ? emoji : undefined,
         color,
       };
-      toast.success(() => (
+
+      showToast(
         <div>
           Added category - <b>{newCategory.name}</b>
         </div>
-      ));
+      );
+
       setUser((prevUser) => ({
         ...prevUser,
         categories: [...prevUser.categories, newCategory],
@@ -134,12 +146,12 @@ const Categories = () => {
       setColor(ColorPalette.purple);
       setEmoji("");
     } else {
-      toast.error((t) => <div onClick={() => toast.dismiss(t.id)}>Category name is required.</div>);
+      showToast("Category name is required.", { type: "error" });
     }
   };
 
   const handleEditDimiss = () => {
-    setSelectedCategoryId(0);
+    setSelectedCategoryId(undefined);
     setOpenEditDialog(false);
     setEditColor(ColorPalette.purple);
     setEditName("");
@@ -185,11 +197,12 @@ const Categories = () => {
         tasks: updatedTasks,
       });
 
-      toast.success(() => (
+      showToast(
         <div>
           Updated category - <b>{editName}</b>
         </div>
-      ));
+      );
+
       setOpenEditDialog(false);
     }
   };
@@ -201,9 +214,9 @@ const Categories = () => {
   return (
     <>
       <TopBar title="Categories" />
-      <Container>
+      <CategoriesContainer>
         {user.categories.length > 0 ? (
-          <CategoriesContainer>
+          <CategoryElementsContainer>
             {user.categories.map((category) => {
               const categoryTasks = user.tasks.filter((task) =>
                 task.category?.some((cat) => cat.id === category.id)
@@ -220,7 +233,7 @@ const Categories = () => {
               const displayPercentage = totalTasksCount > 0 ? `(${completionPercentage}%)` : "";
 
               return (
-                <CategoryDiv key={category.id} clr={category.color}>
+                <CategoryElement key={category.id} clr={category.color}>
                   <CategoryContent translate="no">
                     <span>
                       {category.emoji && (
@@ -263,10 +276,10 @@ const Categories = () => {
                       </IconButton>
                     </ActionButton>
                   </div>
-                </CategoryDiv>
+                </CategoryElement>
               );
             })}
-          </CategoriesContainer>
+          </CategoryElementsContainer>
         ) : (
           <p>You don't have any categories</p>
         )}
@@ -276,9 +289,9 @@ const Categories = () => {
             emoji={typeof emoji === "string" ? emoji : undefined}
             setEmoji={setEmoji}
             color={color}
-            theme={getFontColor(theme.secondary) === ColorPalette.fontDark ? "dark" : "light"}
+            theme={getFontColor(theme.secondary) === ColorPalette.fontDark ? "light" : "dark"}
           />
-          <StyledInput
+          <CategoryInput
             focused
             required
             label="Category name"
@@ -339,7 +352,7 @@ const Categories = () => {
               }}
               color="error"
             >
-              Delete
+              <DeleteRounded /> &nbsp; Delete
             </DialogBtn>
           </DialogActions>
         </Dialog>
@@ -381,10 +394,14 @@ const Categories = () => {
                 label="Enter category name"
                 placeholder="Enter category name"
                 value={editName}
-                error={editNameError !== ""}
+                error={editNameError !== "" || editName.length === 0}
                 onChange={handleEditNameChange}
                 helperText={
-                  !editNameError ? `${editName.length}/${CATEGORY_NAME_MAX_LENGTH}` : editNameError
+                  editNameError
+                    ? editNameError
+                    : editName.length === 0
+                    ? "Category name is required"
+                    : `${editName.length}/${CATEGORY_NAME_MAX_LENGTH}`
                 }
               />
               <ColorPicker
@@ -397,139 +414,19 @@ const Categories = () => {
               />
             </div>
           </DialogContent>
-
           <DialogActions>
             <DialogBtn onClick={handleEditDimiss}>Cancel</DialogBtn>
-            <DialogBtn onClick={handleEditCategory} disabled={editNameError !== ""}>
-              Save
+            <DialogBtn
+              onClick={handleEditCategory}
+              disabled={editNameError !== "" || editName.length === 0}
+            >
+              <SaveRounded /> &nbsp; Save
             </DialogBtn>
           </DialogActions>
         </Dialog>
-      </Container>
+      </CategoriesContainer>
     </>
   );
 };
 
 export default Categories;
-
-const Container = styled.div`
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  flex-direction: column;
-  gap: 40px;
-`;
-
-const CategoriesContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  max-height: 350px;
-  background: #ffffff15;
-  overflow-y: auto;
-  padding: 24px 18px;
-  border-radius: 18px 0 0 18px;
-  /* Custom Scrollbar Styles */
-  ::-webkit-scrollbar {
-    width: 8px;
-    border-radius: 4px;
-    background-color: ${({ theme }) => getFontColor(theme.secondary) + "15"};
-  }
-
-  ::-webkit-scrollbar-thumb {
-    background-color: ${({ theme }) => getFontColor(theme.secondary) + "30"};
-    border-radius: 4px;
-  }
-
-  ::-webkit-scrollbar-thumb:hover {
-    background-color: ${({ theme }) => getFontColor(theme.secondary) + "50"};
-  }
-
-  ::-webkit-scrollbar-track {
-    border-radius: 4px;
-    background-color: ${({ theme }) => getFontColor(theme.secondary) + "15"};
-  }
-`;
-
-const AddContainer = styled.div`
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  flex-direction: column;
-  gap: 4px;
-`;
-
-const CategoryDiv = styled.div<{ clr: string }>`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 350px;
-  margin: 6px 0;
-  padding: 12px;
-  border-radius: 18px;
-  background: ${({ clr }) => clr};
-  color: ${({ clr }) => getFontColor(clr)};
-  animation: ${fadeIn} 0.5s ease-in-out;
-`;
-
-const CategoryContent = styled.div`
-  display: flex;
-  align-items: center;
-  font-weight: 500;
-  margin: 0 4px;
-  gap: 4px;
-`;
-
-const ActionButton = styled.div`
-  background: #ffffffcd;
-  border-radius: 100%;
-  margin: 0 4px;
-`;
-const StyledInput = styled(TextField)`
-  margin: 12px;
-
-  .MuiOutlinedInput-root {
-    border-radius: 16px;
-    transition: 0.3s all;
-    width: 350px;
-    color: ${({ theme }) => getFontColor(theme.secondary)};
-  }
-  & .MuiFormHelperText-root {
-    color: ${({ theme }) => getFontColor(theme.secondary)};
-    opacity: 0.8;
-  }
-`;
-
-const EditNameInput = styled(TextField)`
-  margin-top: 8px;
-  .MuiOutlinedInput-root {
-    border-radius: 16px;
-    transition: 0.3s all;
-    width: 300px;
-  }
-`;
-
-export const AddCategoryButton = styled(Button)`
-  border: none;
-  padding: 18px 48px;
-  font-size: 24px;
-  background: ${({ theme }) => theme.primary};
-  color: ${({ theme }) => getFontColor(theme.primary)};
-  border-radius: 999px;
-  font-weight: bold;
-  cursor: pointer;
-  transition: 0.3s all;
-  margin: 20px;
-  width: 350px;
-  text-transform: capitalize;
-  &:hover {
-    box-shadow: 0px 0px 24px 0px ${({ theme }) => theme.primary + "80"};
-    background: ${({ theme }) => theme.primary};
-  }
-  &:disabled {
-    box-shadow: none;
-    cursor: not-allowed;
-    opacity: 0.7;
-    color: white;
-  }
-`;

@@ -90,9 +90,7 @@ export const BottomNav = (): JSX.Element | null => {
           icon={
             <Badge
               color="primary"
-              badgeContent={
-                value !== 0 ? user.tasks.filter((task) => !task.done).length : undefined
-              }
+              badgeContent={value !== 0 ? tasks.filter((task) => !task.done).length : undefined}
               max={99}
             >
               <TaskAlt sx={{ fontSize: smallIconSize }} />
@@ -139,10 +137,10 @@ const AddIcon = styled(AddRounded)<{ clr: string; animate: boolean }>`
   border-radius: 100px;
   padding: 6px;
   margin: 14px;
-  ${({ animate }) =>
+  ${({ animate, theme }) =>
     animate &&
     css`
-      animation: ${pulseAnimation} 1.2s infinite;
+      animation: ${pulseAnimation(theme.palette.primary.main, 10)} 1.2s infinite;
     `}
 `;
 

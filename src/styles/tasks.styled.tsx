@@ -1,9 +1,9 @@
+import { ColorPalette } from ".";
+import { fadeIn, ring, scale } from "./keyframes.styled";
 import styled from "@emotion/styled";
-import { ColorPalette, fadeIn } from ".";
 import { Button, Checkbox, TextField, css } from "@mui/material";
 import { getFontColor } from "../utils";
 import { Alarm, RadioButtonChecked, RadioButtonUnchecked } from "@mui/icons-material";
-import { keyframes } from "@emotion/css";
 
 interface TaskComponentProps {
   backgroundColor: string;
@@ -22,7 +22,7 @@ export const TaskContainer = styled.div<TaskComponentProps>`
   color: ${({ backgroundColor }) => getFontColor(backgroundColor)};
   border-left: ${({ done }) => (done ? "8px solid #00ff1ee3" : "1px solid transparent")};
   box-shadow: ${(props) =>
-    props.glow && !props.blur ? `0 0 128px -28px ${props.backgroundColor}` : "none"};
+    props.glow && !props.blur ? `0 0 128px -20px ${props.backgroundColor}` : "none"};
   padding: 16px 16px 16px 16px;
   border-radius: 24px;
   animation: ${fadeIn} 0.5s ease-in;
@@ -54,11 +54,6 @@ export const TaskInfo = styled.div`
 export const TaskHeader = styled.div`
   display: flex;
   align-items: center;
-
-  /* @media (max-width: 600px) {
-    flex-direction: column;
-    align-items: flex-start;
-  } */
 `;
 
 export const TaskName = styled.h3<{ done: boolean }>`
@@ -76,12 +71,6 @@ export const TaskDate = styled.p`
   font-size: 14px;
   font-style: italic;
   font-weight: 300;
-
-  /* @media (max-width: 600px) {
-      margin-left: 0;
-      margin-top: 4px;
-      text-align: left;
-    } */
 `;
 
 export const TaskDescription = styled.p<{ done: boolean }>`
@@ -89,8 +78,6 @@ export const TaskDescription = styled.p<{ done: boolean }>`
   font-size: 18px;
   text-decoration: ${({ done }) => (done ? "line-through" : "none")};
   word-break: break-word;
-  /* white-space: pre-line;
-  line-height: 1em; */
 `;
 
 export const ShowMoreBtn = styled(Button)<{ clr: string }>`
@@ -157,9 +144,9 @@ export const SelectedTasksContainer = styled.div`
   align-items: center;
   justify-content: space-between;
   margin: 8px 0;
-  background: ${({ theme }) => getFontColor(theme.secondary) + "29"};
+  background: ${({ theme }) => getFontColor(theme.secondary)}29;
   padding: 16px 20px;
-  border-radius: 16px;
+  border-radius: 18px;
 `;
 
 export const StyledRadio = styled(Checkbox)<{ clr: string }>`
@@ -169,15 +156,6 @@ export const StyledRadio = styled(Checkbox)<{ clr: string }>`
   animation: ${fadeIn} 0.3s ease-in;
   &.Mui-checked {
     color: ${({ clr }) => clr} !important;
-  }
-`;
-
-const scale = keyframes`
-  from {
-    transform: scale(0)
-  }
-  to {
-    transform: scale(1)
   }
 `;
 
@@ -216,21 +194,21 @@ export const CategoriesListContainer = styled.div`
     width: 8px;
     height: 8px;
     border-radius: 4px;
-    background-color: ${({ theme }) => getFontColor(theme.secondary) + "15"};
+    background-color: ${({ theme }) => getFontColor(theme.secondary)}15;
   }
 
   ::-webkit-scrollbar-thumb {
-    background-color: ${({ theme }) => getFontColor(theme.secondary) + "30"};
+    background-color: ${({ theme }) => getFontColor(theme.secondary)}30;
     border-radius: 4px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background-color: ${({ theme }) => getFontColor(theme.secondary) + "50"};
+    background-color: ${({ theme }) => getFontColor(theme.secondary)}50;
   }
 
   ::-webkit-scrollbar-track {
     border-radius: 4px;
-    background-color: ${({ theme }) => getFontColor(theme.secondary) + "15"};
+    background-color: ${({ theme }) => getFontColor(theme.secondary)}15;
   }
 `;
 
@@ -262,41 +240,16 @@ export const SearchInput = styled(TextField)`
     color: white;
   }
 `;
-const ring = keyframes`
-  0% { -webkit-transform: rotateZ(0); }
-  1% { -webkit-transform: rotateZ(30deg); }
-  3% { -webkit-transform: rotateZ(-28deg); }
-  5% { -webkit-transform: rotateZ(34deg); }
-  7% { -webkit-transform: rotateZ(-32deg); }
-  9% { -webkit-transform: rotateZ(30deg); }
-  11% { -webkit-transform: rotateZ(-28deg); }
-  13% { -webkit-transform: rotateZ(26deg); }
-  15% { -webkit-transform: rotateZ(-24deg); }
-  17% { -webkit-transform: rotateZ(22deg); }
-  19% { -webkit-transform: rotateZ(-20deg); }
-  21% { -webkit-transform: rotateZ(18deg); }
-  23% { -webkit-transform: rotateZ(-16deg); }
-  25% { -webkit-transform: rotateZ(14deg); }
-  27% { -webkit-transform: rotateZ(-12deg); }
-  29% { -webkit-transform: rotateZ(10deg); }
-  31% { -webkit-transform: rotateZ(-8deg); }
-  33% { -webkit-transform: rotateZ(6deg); }
-  35% { -webkit-transform: rotateZ(-4deg); }
-  37% { -webkit-transform: rotateZ(2deg); }
-  39% { -webkit-transform: rotateZ(-1deg); }
-  41% { -webkit-transform: rotateZ(1deg); }
-  43% { -webkit-transform: rotateZ(0); }
-  100% { -webkit-transform: rotateZ(0); }
-`;
-//TODO: improve timings
+
+const ringAnimation = "2s 0.5s ease-in-out infinite";
+
 export const RingAlarm = styled(Alarm)<{ animate?: boolean }>`
   color: red;
-
   ${({ animate }) =>
     animate &&
     css`
-      -webkit-animation: ${ring} 2s 0.5s ease-in-out infinite;
-      -moz-animation: ${ring} 2s 0.5s ease-in-out infinite;
-      animation: ${ring} 2s 0.5s ease-in-out infinite;
+      -webkit-animation: ${ring} ${ringAnimation};
+      -moz-animation: ${ring} ${ringAnimation};
+      animation: ${ring} ${ringAnimation};
     `}
 `;
