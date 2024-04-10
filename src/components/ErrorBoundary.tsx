@@ -74,7 +74,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
           <h2>
             To fix it, try clearing your local files (cookies and cache) and then refresh the page.
             If the problem persists, please report the issue via{" "}
-            <StyledLink href="https://github.com/maciekt07/TodoApp/issues">
+            <StyledLink href="https://github.com/lehung2022/advanced-task-ts/issues">
               Github Issues
             </StyledLink>
             .
